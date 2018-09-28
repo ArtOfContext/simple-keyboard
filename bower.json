@@ -19,12 +19,5 @@
     "touch-screen",
     "osk"
   ],
-  "homepage": "https://github.com/ArtOfContext/simple-keyboard",
-  "ignore": [
-    "**/.*",
-    "node_modules",
-    "bower_components",
-    "test",
-    "tests"
-  ]
+  "homepage": "https://github.com/ArtOfContext/simple-keyboard"
 }
