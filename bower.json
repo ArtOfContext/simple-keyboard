@@ -1,0 +1,30 @@
+{
+  "name": "simple-keyboard",
+  "description": "On-screen Javascript Virtual Keyboard",
+  "main": "build/index.js",
+  "authors": [
+    "Francisco Hodge <hello@franciscohodge.com> (https://github.com/hodgef)"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "javascript",
+    "es6",
+    "digital",
+    "keyboard",
+    "onscreen",
+    "virtual",
+    "component",
+    "virtual-keyboard",
+    "touchscreen",
+    "touch-screen",
+    "osk"
+  ],
+  "homepage": "https://github.com/ArtOfContext/simple-keyboard",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
