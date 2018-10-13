@@ -14,6 +14,11 @@ class SimpleKeyboard {
       options = {};
 
     /**
+     * Initializing Utilities
+     */
+    this.utilities = new Utilities(this);
+
+    /**
      * Processing options
      */
     this.keyboardDOM = document.querySelector(keyboardDOMQuery);
@@ -25,6 +30,7 @@ class SimpleKeyboard {
     this.input[this.options.inputName] = '';
     this.keyboardDOMClass = keyboardDOMQuery.split('.').join("");
     this.timers = {};
+    this.buttonElements = {};
 
     /**
      * Rendering keyboard
@@ -41,7 +47,7 @@ class SimpleKeyboard {
     if(!window['SimpleKeyboardInstances'])
       window['SimpleKeyboardInstances'] = {};
       
-    window['SimpleKeyboardInstances'][Utilities.camelCase(this.keyboardDOMClass)] = this;
+    window['SimpleKeyboardInstances'][this.utilities.camelCase(this.keyboardDOMClass)] = this;
 
     /**
      * Physical Keyboard support
@@ -51,7 +57,7 @@ class SimpleKeyboard {
 
   handleButtonClicked = (button) => {
     let debug = this.options.debug;
-    
+
     /**
      * Ignoring placeholder buttons
      */
@@ -63,20 +69,21 @@ class SimpleKeyboard {
      */
     if(typeof this.options.onKeyPress === "function")
       this.options.onKeyPress(button);
-
-    /**
-     * Updating input
-     */
-    let options = {
-      newLineOnEnter: (this.options.newLineOnEnter === true)
-    }
     
     if(!this.input[this.options.inputName])
       this.input[this.options.inputName] = '';
 
-    let updatedInput = Utilities.getUpdatedInput(button, this.input[this.options.inputName], options);
+    let updatedInput = this.utilities.getUpdatedInput(button, this.input[this.options.inputName], this.options, this.caretPosition);
 
     if(this.input[this.options.inputName] !== updatedInput){
+
+      /**
+       * If maxLength and handleMaxLength yield true, halting
+       */
+      if(this.options.maxLength && this.utilities.handleMaxLength(this.input, this.options, updatedInput)){
+        return false;
+      }
+
       this.input[this.options.inputName] = updatedInput;
 
       if(debug)
@@ -153,6 +160,7 @@ class SimpleKeyboard {
   clear = () => {
     this.keyboardDOM.innerHTML = '';
     this.keyboardDOM.className = this.keyboardDOMClass;
+    this.buttonElements = {};
   }
 
   dispatch = (callback) => {
@@ -164,6 +172,162 @@ class SimpleKeyboard {
     return Object.keys(window['SimpleKeyboardInstances']).forEach((key) => {
       callback(window['SimpleKeyboardInstances'][key], key);
     })
+  }
+
+  addButtonTheme = (buttons, className) => {
+    if(!className || !buttons)
+      return false;
+
+    buttons.split(" ").forEach(button => {
+      className.split(" ").forEach(classNameItem => {
+        if(!this.options.buttonTheme)
+          this.options.buttonTheme = [];
+
+        let classNameFound = false;
+  
+        /**
+         * If class is already defined, we add button to class definition
+         */
+        this.options.buttonTheme.map(buttonTheme => {
+
+          if(buttonTheme.class.split(" ").includes(classNameItem)){
+            classNameFound = true;
+            
+            let buttonThemeArray = buttonTheme.buttons.split(" ");
+            if(!buttonThemeArray.includes(button)){
+              classNameFound = true;
+              buttonThemeArray.push(button);
+              buttonTheme.buttons = buttonThemeArray.join(" ");
+            }
+          }
+          return buttonTheme;
+        });
+
+        /**
+         * If class is not defined, we create a new entry
+         */
+        if(!classNameFound){
+          this.options.buttonTheme.push({
+            class: classNameItem,
+            buttons: buttons
+          });
+        }
+
+      });
+    });
+
+    this.render();
+  }
+
+  removeButtonTheme = (buttons, className) => {
+    /**
+     * When called with empty parameters, remove all button themes
+     */
+    if(!buttons && !className){
+      this.options.buttonTheme = [];
+      this.render();
+      return false;
+    }
+
+    /**
+     * If buttons are passed and buttonTheme has items
+     */
+    if(buttons && Array.isArray(this.options.buttonTheme) && this.options.buttonTheme.length){
+      let buttonArray = buttons.split(" ");
+      buttonArray.forEach((button, key) => {
+        this.options.buttonTheme.map((buttonTheme, index) => {
+
+          /**
+           * If className is set, we affect the buttons only for that class
+           * Otherwise, we afect all classes
+           */
+          if(
+            (className && className.includes(buttonTheme.class)) ||
+            !className
+          ){
+            let filteredButtonArray;
+
+            if(buttonArray.includes(button)){
+              filteredButtonArray = buttonTheme.buttons.split(" ").filter(item => item !== button);
+            }
+
+            /**
+             * If buttons left, return them, otherwise, remove button Theme
+             */
+            if(filteredButtonArray.length){
+              buttonTheme.buttons = filteredButtonArray.join(" ");
+            } else {
+              this.options.buttonTheme.splice(index, 1);
+              buttonTheme = null;
+            }
+ 
+          }
+
+          return buttonTheme;
+        });
+      });
+
+      this.render();
+    }
+  }
+
+  getButtonElement = (button) => {
+    let output;
+
+    let buttonArr = this.buttonElements[button];
+    if(buttonArr){
+      if(buttonArr.length > 1){
+        output = buttonArr;
+      } else {
+        output = buttonArr[0];
+      }
+    }
+
+    return output;
+  }
+
+  handleCaret = () => {
+    if(this.options.debug){
+      console.log("Caret handling started");
+    }
+
+    let handler = (event) => {
+      let targetTagName = event.target.tagName.toLowerCase();
+
+      if(
+        targetTagName === "textarea" ||
+        targetTagName === "input"
+      ){
+        this.caretPosition = event.target.selectionStart;
+
+        if(this.options.debug){
+          console.log('Caret at: ', event.target.selectionStart, event.target.tagName.toLowerCase());
+        }     
+      }
+    };
+
+    document.addEventListener("keyup", handler);
+    document.addEventListener("mouseup", handler);
+    document.addEventListener("touchend", handler);
+  }
+
+  onInit = () => {
+    if(this.options.debug){
+      console.log("Initialized");
+    }
+
+    /**
+     * Caret handling
+     */
+    this.handleCaret();
+
+    if(typeof this.options.onInit === "function")
+      this.options.onInit();
+  }
+
+  onRender = () => {
+    if(typeof this.options.onRender === "function")
+      this.options.onRender();
   }
 
   render = () => {
@@ -209,7 +373,7 @@ class SimpleKeyboard {
     /**
      * Iterating through each row
      */
-    layout[this.options.layoutName].forEach((row) => {
+    layout[this.options.layoutName].forEach((row, rIndex) => {
       let rowArray = row.split(' ');
 
       /**
@@ -221,10 +385,10 @@ class SimpleKeyboard {
       /**
        * Iterating through each button in row
        */
-      rowArray.forEach((button) => {
-        let fctBtnClass = Utilities.getButtonClass(button);
+      rowArray.forEach((button, bIndex) => {
+        let fctBtnClass = this.utilities.getButtonClass(button);
         let buttonThemeClass = buttonThemesParsed[button];
-        let buttonDisplayName = Utilities.getButtonDisplayName(button, this.options.display, this.options.mergeDisplay);
+        let buttonDisplayName = this.utilities.getButtonDisplayName(button, this.options.display, this.options.mergeDisplay);
 
         /**
          * Creating button
@@ -234,6 +398,18 @@ class SimpleKeyboard {
         buttonDOM.onclick = () => this.handleButtonClicked(button);
 
         /**
+         * Adding identifier
+         */
+        buttonDOM.setAttribute("data-skBtn", button);
+
+        /**
+         * Adding unique id
+         * Since there's no limit on spawning same buttons, the unique id ensures you can style every button
+         */
+        let buttonUID = `${this.options.layoutName}-r${rIndex}b${bIndex}`;
+        buttonDOM.setAttribute("data-skBtnUID", buttonUID);
+
+        /**
          * Adding button label to button
          */
         var buttonSpanDOM = document.createElement('span');
@@ -241,15 +417,17 @@ class SimpleKeyboard {
         buttonDOM.appendChild(buttonSpanDOM);
 
         /**
+         * Adding to buttonElements
+         */
+        if(!this.buttonElements[button])
+          this.buttonElements[button] = [];
+
+        this.buttonElements[button].push(buttonDOM);
+
+        /**
          * Appending button to row
          */
         rowDOM.appendChild(buttonDOM);
-
-        /**
-         * Calling onInit
-         */
-        if(typeof this.options.onInit === "function")
-        this.options.onInit();
 
       });
 
@@ -258,6 +436,20 @@ class SimpleKeyboard {
        */
       this.keyboardDOM.appendChild(rowDOM);
     });
+
+    /**
+     * Calling onRender
+     */
+    this.onRender();
+
+    if(!this.initialized){
+      this.initialized = true;
+
+      /**
+       * Calling onInit
+       */
+      this.onInit();
+    }
   }
 }
 
